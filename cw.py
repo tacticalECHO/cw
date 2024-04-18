@@ -1,17 +1,17 @@
 import io
 import re
-Num_Problem = 0
 Problems = []
 class Item:
     def __init__(self,weight):
         self.weight=weight
 class problem:
-    def __init__(self,name,capacity,numberofitems,items,bestsolution):
+    def __init__(self,name,capacity,numberofitems,items,Best_solution):
         self.name=name
-        self.capacity=capacity
         self.numberofitems=numberofitems
         self.items=items
-        self.bestsolution=bestsolution
+        self.Best_solution=Best_solution
+        self.knapsack_list=[knapsack(capacity)]
+        self.number_knapsack=0
 class knapsack:
     def __init__(self,capacity):
         self.capacity=capacity
@@ -45,10 +45,25 @@ def dataProcess(filename):
             items.append(Item(weight))
         Problems.append(problem(name,capacity,Numberofitems,items,bestsloution))
         index+=Numberofitems+1
+def FirstSolution(problem):
+    problem.items.sort(key=lambda x: x.weight, reverse=True)
+    for i in range(problem.numberofitems):
+        if problem.knapsack_list[problem.number_knapsack].getWeight()+problem.items[i].weight<=problem.knapsack_list[problem.number_knapsack].capacity:
+            problem.knapsack_list[problem.number_knapsack].add(problem.items[i])
+        else:
+            problem.knapsack_list.append(knapsack(problem.knapsack_list[problem.number_knapsack].capacity))
+            problem.number_knapsack+=1
+            problem.knapsack_list[problem.number_knapsack].add(problem.items[i])
 
 def main():
     filename = 'test.txt'
     dataProcess(filename)
+    for problem in Problems:
+        FirstSolution(problem)
+        print(problem.name)
+        print(problem.number_knapsack)
+        print(problem.Best_solution)
+        print('\n')
     
 
 if __name__ == '__main__':
