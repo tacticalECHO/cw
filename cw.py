@@ -1,9 +1,13 @@
 import io
+import random
 import re
+import math
 Problems = []
+iteration=100
 class Item:
-    def __init__(self,weight):
+    def __init__(self,weight,id):
         self.weight=weight
+        self.id=id
 class problem:
     def __init__(self,name,capacity,numberofitems,items,Best_solution):
         self.name=name
@@ -12,6 +16,7 @@ class problem:
         self.Best_solution=Best_solution
         self.knapsack_list=[knapsack(capacity)]
         self.number_knapsack=0
+        self.my_solution=None
 class knapsack:
     def __init__(self,capacity):
         self.capacity=capacity
@@ -23,7 +28,14 @@ class knapsack:
         return sum([item.weight for item in self.items])
     def getItems(self):
         return self.items
-        
+    def remove(self,item):
+        self.items.remove(item)
+class solution:
+    def __init__(self,problem,number_knapsack=0):
+        self.problem=problem
+        self.knapsacks=[knapsack(problem.knapsack_list[0].capacity)]
+        self.fitness=0
+        self.number_knapsack=number_knapsack     
 def ReadFile(filename):
     with open(filename, 'r') as f:
         return f.read()
@@ -42,29 +54,101 @@ def dataProcess(filename):
         for j in range(1, Numberofitems+1):
             weight=re.findall('[0-9]+',data[index+j+1])
             weight=int(weight[0])
-            items.append(Item(weight))
+            items.append(Item(weight,j))
         Problems.append(problem(name,capacity,Numberofitems,items,bestsloution))
         index+=Numberofitems+1
-def FirstSolution(problem):
-    problem.items.sort(key=lambda x: x.weight, reverse=True)
-    for i in range(problem.numberofitems):
-        if problem.knapsack_list[problem.number_knapsack].getWeight()+problem.items[i].weight<=problem.knapsack_list[problem.number_knapsack].capacity:
-            problem.knapsack_list[problem.number_knapsack].add(problem.items[i])
+def WithoutLimit(problem):
+    total_weight=sum([item.weight for item in problem.items])
+    packNum=math.ceil(total_weight/problem.knapsack_list[0].capacity)
+    return packNum
+def fitness(solution):
+    packNum=WithoutLimit(solution.problem)
+    if solution.number_knapsack==packNum:
+        solution.fitness=100
+    else:
+        solution.fitness=(packNum-solution.number_knapsack)*100
+def firstGeneration(problem):
+    sol_1=solution(problem)
+    for item in problem.items:
+        if sol_1.knapsacks[sol_1.number_knapsack].getWeight()+item.weight<=problem.knapsack_list[0].capacity:
+            sol_1.knapsacks[sol_1.number_knapsack].add(item)
         else:
-            problem.knapsack_list.append(knapsack(problem.knapsack_list[problem.number_knapsack].capacity))
-            problem.number_knapsack+=1
-            problem.knapsack_list[problem.number_knapsack].add(problem.items[i])
+            sol_1.number_knapsack+=1
+            sol_1.knapsacks.append(knapsack(problem.knapsack_list[0].capacity))
+            sol_1.knapsacks[sol_1.number_knapsack].add(item)
+    fitness(sol_1)
+    sol_2=solution(problem)
+    items_in_order=sorted(problem.items,key=lambda x:x.weight,reverse=True)
+    for item in items_in_order:
+        if sol_2.knapsacks[sol_2.number_knapsack].getWeight()+item.weight<=problem.knapsack_list[0].capacity:
+            sol_2.knapsacks[sol_2.number_knapsack].add(item)
+        else:
+            sol_2.number_knapsack+=1
+            sol_2.knapsacks.append(knapsack(problem.knapsack_list[0].capacity))
+            sol_2.knapsacks[sol_2.number_knapsack].add(item)
+    fitness(sol_2)
+    return sol_1,sol_2              
+def First_Fit(solution,items):
+    for item in items:
+        for bag in solution.knapsacks:
+            if bag.getWeight()+item.weight<=bag.capacity:
+                bag.add(item)
+                items.remove(item)
+                break
+    if len(items)>0:
+        add_knapsack=knapsack(solution.problem.knapsack_list[0].capacity)
+        solution.knapsacks.append(add_knapsack)
+        solution.number_knapsack=len(solution.knapsacks)
+        First_Fit(solution,items)
 
+def crossover(sol_1,sol_2):
+    cross_point1=random.randint(0,len(sol_1.knapsacks)-1)
+    cross_part1=sol_1.knapsacks[:cross_point1]
+    if cross_point1==0:
+        cross_point1+=1
+    child=solution(sol_1.problem)
+    item_in_cross_part1=[]
+    Sol2_knapsack=sol_2.knapsacks
+    Del_item=[]
+    for knapsack in cross_part1:
+        item_in_cross_part1+=knapsack.getItems()
+    for item in item_in_cross_part1:
+        for Knapsack in Sol2_knapsack:
+            if item in Knapsack.getItems():
+                for ITEM in Knapsack.getItems():
+                    if ITEM not in item_in_cross_part1:
+                        Del_item.append(ITEM)
+                Sol2_knapsack.remove(Knapsack)
+    for knapsack in cross_part1:
+        child.knapsacks.append(knapsack)
+    for knapsack in Sol2_knapsack:
+        child.knapsacks.append(knapsack)
+    child.number_knapsack=len(child.knapsacks)
+    First_Fit(child,Del_item)
+    fitness(child)
+    return child
+def mutation(solution):
+    print(len(solution.knapsacks))
+    range_index=random.randint(0,len(solution.knapsacks)-1)
+    items=solution.knapsacks[range_index].getItems()
+    solution.knapsacks.remove(solution.knapsacks[range_index])
+    solution.number_knapsack=len(solution.knapsacks)
+    First_Fit(solution,items)
+def geneticAlgorithm(problem):
+    best_solution=None
+    sol_1,sol_2=firstGeneration(problem)
+    child=crossover(sol_1,sol_2)
+    best_solution=child
+    mutation(child)
+    return best_solution
 def main():
-    filename = 'test.txt'
-    dataProcess(filename)
+    dataProcess('test.txt')
     for problem in Problems:
-        FirstSolution(problem)
-        print(problem.name)
-        print(problem.number_knapsack)
-        print(problem.Best_solution)
-        print('\n')
-    
+        best_solution=geneticAlgorithm(problem)
+        print('Problem:',problem.name)
+        print('Best solution:',best_solution.fitness)
+        print('Number of knapsacks:',best_solution.number_knapsack)
+        print('---------------------------------')
 
 if __name__ == '__main__':
     main()
