@@ -105,7 +105,6 @@ def crossover(sol_1,sol_2):
     if cross_point1==0:
         cross_point1+=1
     cross_part1=sol_1.knapsacks[:cross_point1]
-    print(len(cross_part1))
     child=solution(sol_1.problem)
     item_in_cross_part1=[]
     Sol2_knapsack=sol_2.knapsacks
@@ -154,6 +153,7 @@ def geneticAlgorithm(problem):
     population=[sol_1,sol_2]
     for i in range(iteration):
         parent1,parent2=selection(population)
+        print(len(parent1.knapsacks),len(parent2.knapsacks))
         child=crossover(parent1,parent2)
         #if random.randint(0,1)<0.1:
         #    mutation(child)
