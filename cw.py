@@ -3,7 +3,9 @@ import random
 import re
 import math
 Problems = []
-iteration=100
+iteration=10
+Pop_size=100
+k=2
 class Item:
     def __init__(self,weight,id):
         self.weight=weight
@@ -62,11 +64,7 @@ def WithoutLimit(problem):
     packNum=math.ceil(total_weight/problem.knapsack_list[0].capacity)
     return packNum
 def fitness(solution):
-    packNum=WithoutLimit(solution.problem)
-    if solution.number_knapsack==packNum:
-        solution.fitness=100
-    else:
-        solution.fitness=(packNum-solution.number_knapsack)*100
+    solution.fitness=sum([pow(knapsack.getWeight()/knapsack.capacity,k) for knapsack in solution.knapsacks])/solution.number_knapsack
 def firstGeneration(problem):
     sol_1=solution(problem)
     for item in problem.items:
@@ -95,6 +93,7 @@ def First_Fit(solution,items):
                 bag.add(item)
                 items.remove(item)
                 break
+
     if len(items)>0:
         add_knapsack=knapsack(solution.problem.knapsack_list[0].capacity)
         solution.knapsacks.append(add_knapsack)
@@ -103,9 +102,10 @@ def First_Fit(solution,items):
 
 def crossover(sol_1,sol_2):
     cross_point1=random.randint(0,len(sol_1.knapsacks)-1)
-    cross_part1=sol_1.knapsacks[:cross_point1]
     if cross_point1==0:
         cross_point1+=1
+    cross_part1=sol_1.knapsacks[:cross_point1]
+    print(len(cross_part1))
     child=solution(sol_1.problem)
     item_in_cross_part1=[]
     Sol2_knapsack=sol_2.knapsacks
@@ -128,18 +128,40 @@ def crossover(sol_1,sol_2):
     fitness(child)
     return child
 def mutation(solution):
-    print(len(solution.knapsacks))
     range_index=random.randint(0,len(solution.knapsacks)-1)
     items=solution.knapsacks[range_index].getItems()
     solution.knapsacks.remove(solution.knapsacks[range_index])
     solution.number_knapsack=len(solution.knapsacks)
     First_Fit(solution,items)
+    fitness(solution)
+def selection(population):
+    selection_population=[]
+    count=0
+    population.sort(key=lambda x:x.fitness)
+    sum_fitness=sum([solution.fitness for solution in population])
+    while(count<2):
+        for solution in population:
+            random_number=random.random()
+            if random_number<=solution.fitness/sum_fitness:
+                selection_population.append(solution)
+                count+=1
+                break
+    return selection_population[0],selection_population[1]
 def geneticAlgorithm(problem):
+    populationsize=Pop_size
     best_solution=None
     sol_1,sol_2=firstGeneration(problem)
-    child=crossover(sol_1,sol_2)
-    best_solution=child
-    mutation(child)
+    population=[sol_1,sol_2]
+    for i in range(iteration):
+        parent1,parent2=selection(population)
+        child=crossover(parent1,parent2)
+        #if random.randint(0,1)<0.1:
+        #    mutation(child)
+        population.append(child)
+        if len(population)>populationsize:
+            population.sort(key=lambda x:x.fitness,reverse=True)
+            population=population[:populationsize]
+    best_solution=population[0]
     return best_solution
 def main():
     dataProcess('test.txt')
