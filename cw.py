@@ -1,10 +1,11 @@
+import copy
 import io
 import random
 import re
 import math
 import time
 Problems = []
-iteration=1000
+iteration=200
 Pop_size=100
 k=2
 
@@ -18,10 +19,10 @@ class problem:
         self.numberofitems=numberofitems
         self.items=items
         self.Best_solution=Best_solution
-        self.knapsack_list=[knapsack(capacity)]
+        self.knapsack_list=[Knapsack(capacity)]
         self.number_knapsack=0
         self.my_solution=None
-class knapsack:
+class Knapsack:
     def __init__(self,capacity):
         self.capacity=capacity
         self.items=[]
@@ -33,10 +34,12 @@ class knapsack:
         return self.items
     def remove(self,item):
         self.items.remove(item)
+    def clear(self):
+        self.items=[]
 class solution:
     def __init__(self,problem,number_knapsack=0):
         self.problem=problem
-        self.knapsacks=[knapsack(problem.knapsack_list[0].capacity)]
+        self.knapsacks=[Knapsack(problem.knapsack_list[0].capacity)]
         self.fitness=0
         self.number_knapsack=number_knapsack     
 def ReadFile(filename):
@@ -70,7 +73,7 @@ def firstGeneration(problem):
             sol_1.knapsacks[sol_1.number_knapsack].add(item)
         else:
             sol_1.number_knapsack+=1
-            sol_1.knapsacks.append(knapsack(problem.knapsack_list[0].capacity))
+            sol_1.knapsacks.append(Knapsack(problem.knapsack_list[0].capacity))
             sol_1.knapsacks[sol_1.number_knapsack].add(item)
     fitness(sol_1)
     sol_2=solution(problem)
@@ -80,17 +83,27 @@ def firstGeneration(problem):
             sol_2.knapsacks[sol_2.number_knapsack].add(item)
         else:
             sol_2.number_knapsack+=1
-            sol_2.knapsacks.append(knapsack(problem.knapsack_list[0].capacity))
+            sol_2.knapsacks.append(Knapsack(problem.knapsack_list[0].capacity))
             sol_2.knapsacks[sol_2.number_knapsack].add(item)
     fitness(sol_2)
     return sol_1,sol_2
-def Fit_process(solution,items):
+def Best_Fit(solution, items):
     for item in items:
-        for bag in solution.knapsacks:
-            if bag.getWeight()+item.weight<=bag.capacity:
-                bag.add(item)
-                items.remove(item)
-                break        
+        best_knapsack = None
+        min_remain = float('inf')
+        for knapsack in solution.knapsacks:
+            remain = knapsack.capacity - knapsack.getWeight()
+            if remain >= item.weight and remain < min_remain:
+                best_knapsack = knapsack
+                min_remain = remain
+
+        if best_knapsack is not None:
+            best_knapsack.add(item)
+        else:
+            new_knapsack = Knapsack(solution.problem.knapsack_list[0].capacity)
+            new_knapsack.add(item)
+            solution.knapsacks.append(new_knapsack)
+            solution.number_knapsack = len(solution.knapsacks)     
 def First_Fit(solution,items):
     for item in items:
         for bag in solution.knapsacks:
@@ -99,49 +112,48 @@ def First_Fit(solution,items):
                 items.remove(item)
                 break
     if len(items)>0:
-        add_knapsack=knapsack(solution.problem.knapsack_list[0].capacity)
-        add_knapsack.add(items[0])
-        items.remove(items[0])
+        add_knapsack=Knapsack(solution.problem.knapsack_list[0].capacity)
         solution.knapsacks.append(add_knapsack)
         solution.number_knapsack=len(solution.knapsacks)
         First_Fit(solution,items)
-
 def crossover(sol_1,sol_2):
     cross_point1=random.randint(0,len(sol_1.knapsacks)-1)
     if cross_point1==0:
         cross_point1+=1
     cross_part1=sol_1.knapsacks[:cross_point1]
+    sol2=sol_2.knapsacks
     child=solution(sol_1.problem)
-    item_in_cross_part1=[]
-    Sol2_knapsack=[]
-    for knapsack in sol_2.knapsacks:
-        Sol2_knapsack.append(knapsack)
+    if cross_point1<len(sol_2.knapsacks):
+        for Ak in cross_part1:
+            sol2.insert(cross_point1,Ak)
+            cross_point1+=1
+    else:
+        sol2+=cross_part1
+    item_to_knapsack={}
     Del_item=[]
     for knapsack in cross_part1:
-        item_in_cross_part1+=knapsack.getItems()
-    for item in item_in_cross_part1:
-        for Knapsack in Sol2_knapsack:
-            if item in Knapsack.getItems():
-                for ITEM in Knapsack.getItems():
-                    if ITEM not in item_in_cross_part1:
-                        Del_item.append(ITEM)
-                Sol2_knapsack.remove(Knapsack)
-    for knapsack in cross_part1:
-        child.knapsacks.append(knapsack)
-    for knapsack in Sol2_knapsack:
-        child.knapsacks.append(knapsack)
+        for item in knapsack.getItems():
+            item_to_knapsack[item.id]=knapsack
+    for knapsack in sol2:
+        for item in knapsack.getItems():
+            if item.id in item_to_knapsack:
+                Del_item+=knapsack.getItems()
+                sol2.remove(knapsack)
+                break
+    child.knapsacks=sol2
     First_Fit(child,Del_item)
+    print(len(child.knapsacks))
     child.number_knapsack=len(child.knapsacks)
     fitness(child)
-    return child
+    return child  
 def mutation(solution):
     number_of_mutation=math.ceil(solution.number_knapsack*0.1)
     items=[]
     for i in range(number_of_mutation):
         range_index=random.randint(0,len(solution.knapsacks)-1)
-        items=solution.knapsacks[range_index].getItems()
+        items+=solution.knapsacks[range_index].getItems()
         solution.knapsacks.remove(solution.knapsacks[range_index])
-        First_Fit(solution,items)
+    First_Fit(solution,items)
     solution.number_knapsack=len(solution.knapsacks)
     fitness(solution)
 def selection(population):
@@ -164,13 +176,58 @@ def geneticAlgorithm(problem):
     population=[sol_1,sol_2]
     for i in range(iteration):
         parent1,parent2=selection(population)
-        child=crossover(parent1,parent2)
+        child1=crossover(parent1,parent2)
+        child2=crossover(parent2,parent1)
+        print(len(child1.knapsacks),len(child2.knapsacks))
         if random.random()<0.1:
-            mutation(child)
+            mutation(child1)
+        if random.random()<0.1:
+            mutation(child2)
+        population.append(child1)
+        population.append(child2)
         if len(population)>populationsize:
-            population.sort(key=lambda x:x.fitness,reverse=True)
+            population.sort(key=lambda x:x.number_knapsack,reverse=True)
             population=population[:populationsize]
+    population.sort(key=lambda x:x.number_knapsack)
     best_solution=population[0]
+    return best_solution
+def PMX(solution):
+    items=solution.problem.items
+    cxpoint1=random.randint(0,len(items)-1)
+    cxpoint2=random.randint(0,len(items)-1)
+    if cxpoint1>cxpoint2:
+        cxpoint1,cxpoint2=cxpoint2,cxpoint1
+    
+def SimulatedAnnealing(problem):
+    T=100
+    T_min=0.1
+    alpha=0.9
+    current_solution=solution(problem)
+    current_solution.number_knapsack=0
+    current_solution.knapsacks=[Knapsack(problem.knapsack_list[0].capacity)]
+    items_list=copy.deepcopy(problem.items)
+    First_Fit(current_solution,items_list)
+    best_solution=copy.deepcopy(current_solution)
+    while T>T_min:
+        i=0
+        while i<10:
+            new_solution=copy.deepcopy(current_solution)
+            new_solution.number_knapsack=0
+            new_solution.knapsacks=[Knapsack(problem.knapsack_list[0].capacity)]
+            items_list=copy.deepcopy(problem.items)
+            random.shuffle(items_list)
+            First_Fit(new_solution,items_list)
+            fitness(new_solution)
+            if new_solution.number_knapsack<best_solution.number_knapsack:
+                best_solution=new_solution
+            if new_solution.number_knapsack<current_solution.number_knapsack:
+                current_solution=new_solution
+            else:
+                delta=new_solution.number_knapsack-current_solution.number_knapsack
+                if random.random()<math.exp(-delta/T):
+                    current_solution=new_solution
+            i+=1
+        T*=alpha
     return best_solution
 def PrintToFile(filename):
     with open(filename, 'w') as f:
@@ -186,7 +243,8 @@ def main():
     dataProcess('test.txt')
     timeStart = time.time()
     for problem in Problems:
-        best_solution=geneticAlgorithm(problem)
+        best_solution=SimulatedAnnealing(problem)
+        #best_solution=geneticAlgorithm(problem)
         #print('Problem:',problem.name)
         #print('Best solution:',best_solution.fitness)
         #print('Number of knapsacks:',best_solution.number_knapsack)
