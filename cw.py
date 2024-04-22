@@ -2,6 +2,7 @@ import io
 import random
 import re
 import math
+import time
 Problems = []
 iteration=1000
 Pop_size=100
@@ -48,21 +49,18 @@ def dataProcess(filename):
     for i in range(1,Num_Problem+1):
         index+=1
         name=data[index]
+        name=name.replace(' ','')
         number=re.findall('[0-9]+',data[index+1])
         Numberofitems=int(number[1])
         capacity=int(number[0])
         bestsloution=int(number[2])
         items=[]
-        for j in range(1, Numberofitems+1):
+        for j in range(0, Numberofitems):
             weight=re.findall('[0-9]+',data[index+j+1])
             weight=int(weight[0])
             items.append(Item(weight,j))
         Problems.append(problem(name,capacity,Numberofitems,items,bestsloution))
         index+=Numberofitems+1
-def WithoutLimit(problem):
-    total_weight=sum([item.weight for item in problem.items])
-    packNum=math.ceil(total_weight/problem.knapsack_list[0].capacity)
-    return packNum
 def fitness(solution):
     solution.fitness=sum([pow(knapsack.getWeight()/knapsack.capacity,k) for knapsack in solution.knapsacks])/solution.number_knapsack
 def firstGeneration(problem):
@@ -138,12 +136,13 @@ def crossover(sol_1,sol_2):
     return child
 def mutation(solution):
     number_of_mutation=math.ceil(solution.number_knapsack*0.1)
+    items=[]
     for i in range(number_of_mutation):
         range_index=random.randint(0,len(solution.knapsacks)-1)
         items=solution.knapsacks[range_index].getItems()
         solution.knapsacks.remove(solution.knapsacks[range_index])
+        First_Fit(solution,items)
     solution.number_knapsack=len(solution.knapsacks)
-    First_Fit(solution,items)
     fitness(solution)
 def selection(population):
     selection_population=[]
@@ -168,21 +167,41 @@ def geneticAlgorithm(problem):
         child=crossover(parent1,parent2)
         if random.random()<0.1:
             mutation(child)
-        population.append(child)
         if len(population)>populationsize:
             population.sort(key=lambda x:x.fitness,reverse=True)
             population=population[:populationsize]
     best_solution=population[0]
     return best_solution
+def PrintToFile(filename):
+    with open(filename, 'w') as f:
+        f.write(str(len(Problems))+'\n')
+        for problem in Problems:
+            f.write(problem.name+'\n')
+            f.write(" "+"obj=   "+str(problem.my_solution.number_knapsack)+" 	 "+str(abs(problem.my_solution.number_knapsack-problem.Best_solution))+'\n')
+            for knapsack in problem.my_solution.knapsacks:
+                for item in knapsack.getItems():
+                    f.write(str(item.id)+' ')
+                f.write('\n')
 def main():
     dataProcess('test.txt')
+    timeStart = time.time()
     for problem in Problems:
         best_solution=geneticAlgorithm(problem)
-        print('Problem:',problem.name)
-        print('Best solution:',best_solution.fitness)
-        print('Number of knapsacks:',best_solution.number_knapsack)
-        print('Best solution for now:',problem.Best_solution)
-        print('---------------------------------')
+        #print('Problem:',problem.name)
+        #print('Best solution:',best_solution.fitness)
+        #print('Number of knapsacks:',best_solution.number_knapsack)
+        #print('Best solution for now:',problem.Best_solution)
+        #for knapsack in best_solution.knapsacks:
+            #print('Knapsack:')
+            #print('Weight:',knapsack.getWeight())
+            #for item in knapsack.getItems():
+                #print(item.id,end=' ')
+        #print('---------------------------------')
+        problem.my_solution=best_solution
+    PrintToFile('output.txt')
+    timeEnd = time.time()
+    print('Time:',timeEnd-timeStart)
+
 
 if __name__ == '__main__':
     main()
