@@ -203,8 +203,8 @@ def PMX(solution):
     
 def SimulatedAnnealing(problem):
     T=100
-    T_min=1
-    alpha=0.95
+    T_min=0.1
+    alpha=0.9
     current_solution=solution(problem)
     current_solution.number_knapsack=0
     current_solution.knapsacks=[Knapsack(problem.knapsack_list[0].capacity)]
@@ -212,22 +212,24 @@ def SimulatedAnnealing(problem):
     First_Fit(current_solution,items_list)
     best_solution=copy.deepcopy(current_solution)
     while T>T_min:
-        new_solution=current_solution
-        items_list=copy.deepcopy(problem.items)
-        random.shuffle(items_list)
-        First_Fit(new_solution,items_list)
-        fitness(new_solution)
-        if new_solution.number_knapsack<best_solution.number_knapsack:
-            best_solution=new_solution
-        mutation(new_solution)
-        if new_solution.number_knapsack<current_solution.number_knapsack:
-            current_solution=new_solution
-        if new_solution.number_knapsack<current_solution.number_knapsack:
-            current_solution=new_solution
-        else:
-            delta=new_solution.number_knapsack-current_solution.number_knapsack
-            if random.random()<math.exp(-delta/T):
+        i=0
+        while i<10:
+            new_solution=copy.deepcopy(current_solution)
+            new_solution.number_knapsack=0
+            new_solution.knapsacks=[Knapsack(problem.knapsack_list[0].capacity)]
+            items_list=copy.deepcopy(problem.items)
+            random.shuffle(items_list)
+            First_Fit(new_solution,items_list)
+            fitness(new_solution)
+            if new_solution.number_knapsack<best_solution.number_knapsack:
+                best_solution=new_solution
+            if new_solution.number_knapsack<current_solution.number_knapsack:
                 current_solution=new_solution
+            else:
+                delta=new_solution.number_knapsack-current_solution.number_knapsack
+                if random.random()<math.exp(-delta/T):
+                    current_solution=new_solution
+            i+=1
         T*=alpha
     return best_solution
 def PrintToFile(filename):
