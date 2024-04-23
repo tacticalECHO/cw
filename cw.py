@@ -5,7 +5,7 @@ import re
 import math
 import time
 Problems = []
-iteration=10
+iteration=1000
 Pop_size=100
 k=2
 
@@ -122,29 +122,36 @@ def crossover(sol_1,sol_2):
     cross_part1=sol_1.knapsacks[:cross_point1]
     sol2=sol_2.knapsacks
     child=solution(sol_1.problem)
+    item_to_knapsack={}
+    item_in_cross=set()
+    for knapsack in cross_part1:
+        for item in knapsack.getItems():
+            item_to_knapsack[item.id]=knapsack
+            item_in_cross.add(item)
+    Knapsack_to_delete=[]
+    for knapsack in sol2:
+        for item in knapsack.getItems():
+            if item.id in item_to_knapsack:
+                Knapsack_to_delete.append(knapsack)
+                break
+    item_to_delete=set()
+    for knapsack in Knapsack_to_delete:
+        for item in knapsack.getItems():
+            item_to_delete.add(item)
+        sol2.remove(knapsack)
+    diff=set(item_to_delete-item_in_cross)
+
     if cross_point1<len(sol_2.knapsacks):
         for Ak in cross_part1:
             sol2.insert(cross_point1,Ak)
             cross_point1+=1
     else:
         sol2+=cross_part1
-    item_to_knapsack={}
-    Del_item=[]
-    for knapsack in cross_part1:
-        for item in knapsack.getItems():
-            item_to_knapsack[item.id]=knapsack
-    for knapsack in sol2:
-        for item in knapsack.getItems():
-            if item.id in item_to_knapsack:
-                Del_item+=knapsack.getItems()
-                sol2.remove(knapsack)
-                break
     child.knapsacks=sol2
-    First_Fit(child,Del_item)
-    print(len(child.knapsacks))
+    First_Fit(child,diff)
     child.number_knapsack=len(child.knapsacks)
     fitness(child)
-    return child  
+    return child
 
 def mutation(solution):
     number_of_mutation=math.ceil(solution.number_knapsack*0.1)
@@ -153,7 +160,7 @@ def mutation(solution):
         range_index=random.randint(0,len(solution.knapsacks)-1)
         items+=solution.knapsacks[range_index].getItems()
         solution.knapsacks.remove(solution.knapsacks[range_index])
-    First_Fit(solution,items)
+    Best_Fit(solution,items)
     solution.number_knapsack=len(solution.knapsacks)
     fitness(solution)
 
@@ -178,9 +185,9 @@ def geneticAlgorithm(problem):
     population=[sol_1,sol_2]
     for i in range(iteration):
         parent1,parent2=selection(population)
+        print(parent1.fitness,parent2.fitness)
         child1=crossover(parent1,parent2)
         child2=crossover(parent2,parent1)
-        print(len(child1.knapsacks),len(child2.knapsacks))
         if random.random()<0.1:
             mutation(child1)
         if random.random()<0.1:
@@ -239,15 +246,26 @@ def PrintToFile(filename):
             f.write(problem.name+'\n')
             f.write(" "+"obj=   "+str(problem.my_solution.number_knapsack)+" 	 "+str(problem.my_solution.number_knapsack-problem.Best_solution)+'\n')
             for knapsack in problem.my_solution.knapsacks:
+                #f.write(str(knapsack.getWeight())+' ')
                 for item in knapsack.getItems():
                     f.write(str(item.id)+' ')
+                f.write('\n')
+    with open(filename+'copy', 'w') as f:
+        f.write(str(len(Problems))+'\n')
+        for problem in Problems:
+            f.write(problem.name+'\n')
+            f.write(" "+"obj=   "+str(problem.my_solution.number_knapsack)+" 	 "+str(problem.my_solution.number_knapsack-problem.Best_solution)+'\n')
+            for knapsack in problem.my_solution.knapsacks:
+                f.write(str(knapsack.getWeight())+' ')
+                for item in knapsack.getItems():
+                    f.write(str(item.id)+' '+str(item.weight)+' ')
                 f.write('\n')
 def main():
     dataProcess('test.txt')
     timeStart = time.time()
     for problem in Problems:
-        best_solution=SimulatedAnnealing(problem)
-        #best_solution=geneticAlgorithm(problem)
+        #best_solution=SimulatedAnnealing(problem)
+        best_solution=geneticAlgorithm(problem)
         #print('Problem:',problem.name)
         #print('Best solution:',best_solution.fitness)
         #print('Number of knapsacks:',best_solution.number_knapsack)
