@@ -5,7 +5,7 @@ import re
 import math
 import time
 Problems = []
-iteration=200
+iteration=10
 Pop_size=100
 k=2
 
@@ -58,10 +58,10 @@ def dataProcess(filename):
         capacity=int(number[0])
         bestsloution=int(number[2])
         items=[]
-        for j in range(0, Numberofitems):
+        for j in range(1, Numberofitems+1):
             weight=re.findall('[0-9]+',data[index+j+1])
             weight=int(weight[0])
-            items.append(Item(weight,j))
+            items.append(Item(weight,j-1))
         Problems.append(problem(name,capacity,Numberofitems,items,bestsloution))
         index+=Numberofitems+1
 def fitness(solution):
@@ -106,16 +106,15 @@ def Best_Fit(solution, items):
             solution.number_knapsack = len(solution.knapsacks)     
 def First_Fit(solution,items):
     for item in items:
-        for bag in solution.knapsacks:
-            if bag.getWeight()+item.weight<=bag.capacity:
-                bag.add(item)
-                items.remove(item)
+        for knapsack in solution.knapsacks:
+            if knapsack.getWeight()+item.weight<=knapsack.capacity:
+                knapsack.add(item)
                 break
-    if len(items)>0:
-        add_knapsack=Knapsack(solution.problem.knapsack_list[0].capacity)
-        solution.knapsacks.append(add_knapsack)
-        solution.number_knapsack=len(solution.knapsacks)
-        First_Fit(solution,items)
+        else:
+            new_knapsack=Knapsack(solution.problem.knapsack_list[0].capacity)
+            new_knapsack.add(item)
+            solution.knapsacks.append(new_knapsack)
+            solution.number_knapsack=len(solution.knapsacks)
 def crossover(sol_1,sol_2):
     cross_point1=random.randint(0,len(sol_1.knapsacks)-1)
     if cross_point1==0:
@@ -146,6 +145,7 @@ def crossover(sol_1,sol_2):
     child.number_knapsack=len(child.knapsacks)
     fitness(child)
     return child  
+
 def mutation(solution):
     number_of_mutation=math.ceil(solution.number_knapsack*0.1)
     items=[]
@@ -156,6 +156,7 @@ def mutation(solution):
     First_Fit(solution,items)
     solution.number_knapsack=len(solution.knapsacks)
     fitness(solution)
+
 def selection(population):
     selection_population=[]
     count=0
@@ -169,6 +170,7 @@ def selection(population):
                 count+=1
                 break
     return selection_population[0],selection_population[1]
+
 def geneticAlgorithm(problem):
     populationsize=Pop_size
     best_solution=None
@@ -191,6 +193,7 @@ def geneticAlgorithm(problem):
     population.sort(key=lambda x:x.number_knapsack)
     best_solution=population[0]
     return best_solution
+
 def PMX(solution):
     items=solution.problem.items
     cxpoint1=random.randint(0,len(items)-1)
@@ -200,8 +203,8 @@ def PMX(solution):
     
 def SimulatedAnnealing(problem):
     T=100
-    T_min=0.1
-    alpha=0.9
+    T_min=1
+    alpha=0.95
     current_solution=solution(problem)
     current_solution.number_knapsack=0
     current_solution.knapsacks=[Knapsack(problem.knapsack_list[0].capacity)]
@@ -209,24 +212,22 @@ def SimulatedAnnealing(problem):
     First_Fit(current_solution,items_list)
     best_solution=copy.deepcopy(current_solution)
     while T>T_min:
-        i=0
-        while i<10:
-            new_solution=copy.deepcopy(current_solution)
-            new_solution.number_knapsack=0
-            new_solution.knapsacks=[Knapsack(problem.knapsack_list[0].capacity)]
-            items_list=copy.deepcopy(problem.items)
-            random.shuffle(items_list)
-            First_Fit(new_solution,items_list)
-            fitness(new_solution)
-            if new_solution.number_knapsack<best_solution.number_knapsack:
-                best_solution=new_solution
-            if new_solution.number_knapsack<current_solution.number_knapsack:
+        new_solution=current_solution
+        items_list=copy.deepcopy(problem.items)
+        random.shuffle(items_list)
+        First_Fit(new_solution,items_list)
+        fitness(new_solution)
+        if new_solution.number_knapsack<best_solution.number_knapsack:
+            best_solution=new_solution
+        mutation(new_solution)
+        if new_solution.number_knapsack<current_solution.number_knapsack:
+            current_solution=new_solution
+        if new_solution.number_knapsack<current_solution.number_knapsack:
+            current_solution=new_solution
+        else:
+            delta=new_solution.number_knapsack-current_solution.number_knapsack
+            if random.random()<math.exp(-delta/T):
                 current_solution=new_solution
-            else:
-                delta=new_solution.number_knapsack-current_solution.number_knapsack
-                if random.random()<math.exp(-delta/T):
-                    current_solution=new_solution
-            i+=1
         T*=alpha
     return best_solution
 def PrintToFile(filename):
@@ -234,7 +235,7 @@ def PrintToFile(filename):
         f.write(str(len(Problems))+'\n')
         for problem in Problems:
             f.write(problem.name+'\n')
-            f.write(" "+"obj=   "+str(problem.my_solution.number_knapsack)+" 	 "+str(abs(problem.my_solution.number_knapsack-problem.Best_solution))+'\n')
+            f.write(" "+"obj=   "+str(problem.my_solution.number_knapsack)+" 	 "+str(problem.my_solution.number_knapsack-problem.Best_solution)+'\n')
             for knapsack in problem.my_solution.knapsacks:
                 for item in knapsack.getItems():
                     f.write(str(item.id)+' ')
