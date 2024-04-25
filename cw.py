@@ -16,11 +16,12 @@ Low_rate=0.9
 # Genetic Algorithm Parameters
 #-----------------------------------------------------------------------------------------------------------------------
 # PSO Parameters
-PSO_population_size=100
+PSO_population_size=10
 PSO_w=0.5
-PSO_c1=1
-PSO_c2=1
+PSO_c1=1.6
+PSO_c2=2
 PSO_iteration=100
+PSO_mutation_rate_N=0.3
 #-----------------------------------------------------------------------------------------------------------------------
 # Genetic Algorithm
 class Item:
@@ -168,6 +169,8 @@ def mutation(solution):
         items+=solution.knapsacks[range_index].getItems()
         solution.knapsacks.remove(solution.knapsacks[range_index])
     First_Fit(solution,items)
+    for i in range(number_of_mutation):
+        swap_items(solution)
     solution.number_knapsack=len(solution.knapsacks)
     fitness(solution)
     return solution
@@ -209,9 +212,8 @@ def geneticAlgorithm(problem):
     return best_solution
 #-----------------------------------------------------------------------------------------------------------------------
 # PSO
-import sys
 class Particle:
-    def __init__(self,problem,position,number_of_swap,best_number_knapsack=sys.maxsize):
+    def __init__(self,problem,position,number_of_swap,best_number_knapsack=-1):
         self.problem=problem
         self.position=position
         self.velocity=number_of_swap
@@ -230,14 +232,25 @@ class Particle:
         else:
             for i in range(-self.velocity):
                 shift_items(new_position)
-                mutation(new_position)
-        PSO_best_fit(new_position,self.problem.items)
+                PSO_mutation(new_position)
         new_position.number_knapsack=len(new_position.knapsacks)
         fitness(new_position)
         if new_position.number_knapsack<self.best_number_knapsack:
             self.best_number_knapsack=new_position.number_knapsack
             self.best_position=new_position
         self.position=new_position
+def PSO_mutation(solution):
+    number_of_mutation=math.ceil(solution.number_knapsack*PSO_mutation_rate_N)
+    items=[]
+    
+    for i in range(number_of_mutation):
+        range_index=random.randint(0,len(solution.knapsacks)-1)
+        items+=solution.knapsacks[range_index].getItems()
+        solution.knapsacks.remove(solution.knapsacks[range_index])
+    Best_Fit(solution,items)
+    solution.number_knapsack=len(solution.knapsacks)
+    fitness(solution)
+    return solution
 def shift_items(solution):
     k1,k2=random.sample(range(len(solution.knapsacks)),2)
     knapsack1=solution.knapsacks[k1]
@@ -249,9 +262,12 @@ def shift_items(solution):
         knapsack1.add(item)
         knapsack2.remove(item)
 def swap_items(solution):
-    knapsack1,knapsack2=random.sample(range(len(solution.knapsacks)),2)
+    k1,k2=random.sample(range(len(solution.knapsacks)),2)
+    knapsack1=solution.knapsacks[k1]
+    knapsack2=solution.knapsacks[k2]
     item1=random.choice(knapsack1.getItems())
     item2=random.choice(knapsack2.getItems())
+    print(item2.id)
     knapsack1.remove(item1)
     knapsack2.remove(item2)
     knapsack1.add(item2)
@@ -375,19 +391,8 @@ def main():
     timeStart = time.time()
     for problem in Problems:
         #best_solution=SimulatedAnnealing(problem)
-        #best_solution=geneticAlgorithm(problem)
-        best_solution=PSO(problem,PSO_population_size,PSO_w,PSO_c1,PSO_c2)
-        #best_solution.number_knapsack=len(best_solution.knapsacks)
-        #print('Problem:',problem.name)
-        #print('Best solution:',best_solution.fitness)
-        #print('Number of knapsacks:',best_solution.number_knapsack)
-        #print('Best solution for now:',problem.Best_solution)
-        #for knapsack in best_solution.knapsacks:
-            #print('Knapsack:')
-            #print('Weight:',knapsack.getWeight())
-            #for item in knapsack.getItems():
-                #print(item.id,end=' ')
-        #print('---------------------------------')
+        best_solution=geneticAlgorithm(problem)
+        #best_solution=PSO(problem,PSO_population_size,PSO_w,PSO_c1,PSO_c2)
         problem.my_solution=best_solution
     PrintToFile('output.txt')
     timeEnd = time.time()
