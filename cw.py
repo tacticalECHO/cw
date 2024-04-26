@@ -213,7 +213,6 @@ class Particle:
     def update_position(self):
         new_position=solution(self.problem)
         new_position.knapsacks=copy.deepcopy(self.position.knapsacks)
-        #print(len(new_position.knapsacks))
         if self.velocity>0:
             for i in range(self.velocity):
                 Clear_null_knapsack(new_position)
@@ -233,30 +232,41 @@ def Clear_null_knapsack(solution):
     for knapsack in solution.knapsacks:
         if len(knapsack.getItems())==0:
             solution.knapsacks.remove(knapsack)
+def swap_items_solution(solution,Kn_in_order_weight):
+    knapsack1,knapsack2=random.sample(solution.knapsacks,2)
+    item1=random.choice(knapsack1.getItems())
+    item2=random.choice(knapsack2.getItems())
+    knapsack1.remove(item1)
+    knapsack2.remove(item2)
+    knapsack1.add(item2)
+    knapsack2.add(item1)
+    if knapsack1.getWeight()>knapsack1.capacity or knapsack2.getWeight()>knapsack2.capacity:
+        knapsack1.remove(item2)
+        knapsack2.remove(item1)
+        knapsack1.add(item1)
+        knapsack2.add(item2)
 def PSO_mutation(solution):
     number_of_mutation=math.ceil(solution.number_knapsack*PSO_mutation_rate_N)
+    Kn_in_order_weight=sorted(solution.knapsacks,key=lambda x:x.getWeight())
     items=[]
-    
     for i in range(number_of_mutation):
-        range_index=random.randint(0,len(solution.knapsacks)-1)
-        items+=solution.knapsacks[range_index].getItems()
-        solution.knapsacks.remove(solution.knapsacks[range_index])
+        items+=Kn_in_order_weight[i].getItems()
+        solution.knapsacks.remove(Kn_in_order_weight[i])
+        swap_items_solution(solution,Kn_in_order_weight)
     Best_Fit(solution,items)
     solution.number_knapsack=len(solution.knapsacks)
     fitness(solution)
     return solution
 def shift_items(solution):
-    number_of_mutation=math.ceil(solution.number_knapsack*PSO_mutation_rate_N)
-    for i in range(number_of_mutation):
-        k1,k2=random.sample(range(len(solution.knapsacks)),2)
-        knapsack1=solution.knapsacks[k1]
-        knapsack2=solution.knapsacks[k2]
-        item=random.choice(knapsack1.getItems())
-        knapsack1.remove(item)
-        knapsack2.add(item)
-        if  knapsack2.getWeight()>knapsack2.capacity:
-            knapsack1.add(item)
-            knapsack2.remove(item)
+    k1,k2=random.sample(range(len(solution.knapsacks)),2)
+    knapsack1=solution.knapsacks[k1]
+    knapsack2=solution.knapsacks[k2]
+    item=random.choice(knapsack1.getItems())
+    knapsack1.remove(item)
+    knapsack2.add(item)
+    if  knapsack2.getWeight()>knapsack2.capacity:
+        knapsack1.add(item)
+        knapsack2.remove(item)
 def swap_items(solution):
     k1,k2=random.sample(range(len(solution.knapsacks)),2)
     knapsack1=solution.knapsacks[k1]
