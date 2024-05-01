@@ -111,6 +111,91 @@ def First_Fit(solution,items):
             new_knapsack.add(item)
             solution.knapsacks.append(new_knapsack)
             solution.number_knapsack=len(solution.knapsacks)
+def Crossover_Prime(fsol_1,fsol_2):
+    sol_1=copy.deepcopy(fsol_1)
+    sol_2=copy.deepcopy(fsol_2)
+    child=solution(sol_1.problem)
+    GreatGene_in_sol_1=[]
+    item_in_great_gene=[]
+    for kn in sol_1.knapsacks:
+        if kn.getWeight()>=kn.capacity*Prim_rate:
+            GreatGene_in_sol_1.append(kn)
+            item_in_great_gene+=kn.getItems()
+    item_to_knapsack={}
+    for kn in GreatGene_in_sol_1:
+        for item in kn.getItems():
+            item_to_knapsack[item.id]=kn
+    kn_to_delete=set()
+    for kn in sol_2.knapsacks:
+        for item in kn.getItems():
+            if item.id in item_to_knapsack:
+                kn_to_delete.add(kn)
+                break
+    item_in_detele=[]
+    for kn in kn_to_delete:
+        item_in_detele+=kn.getItems()
+        sol_2.knapsacks.remove(kn)
+    diff_item=set(item_in_detele)-set(item_in_great_gene)
+    child.knapsacks=copy.deepcopy(sol_2.knapsacks)
+    First_Fit(child,list(diff_item))
+    child.number_knapsack=len(child.knapsacks)
+    fitness(child)
+    return child
+def firstGeneration(problem):
+    sol_1=solution(problem)
+    First_Fit(sol_1,problem.items)
+    fitness(sol_1)
+    sol_2=solution(problem)
+    Best_Fit(sol_2,problem.items)
+    fitness(sol_2)
+    return sol_1,sol_2
+def mutation(solution):
+    number_of_mutation=math.ceil(solution.number_knapsack*mutation_rate_N)
+    items=[]
+    for i in range(number_of_mutation):
+        swap_items_solution(solution)
+        shift_item_large_knapsack(solution)
+        range_index=random.randint(0,len(solution.knapsacks)-1)
+        items+=solution.knapsacks[range_index].getItems()
+        solution.knapsacks.remove(solution.knapsacks[range_index])
+    Best_Fit(solution,items)
+    solution.number_knapsack=len(solution.knapsacks)
+    fitness(solution)
+    return solution
+def selection(population):
+    selection_population=[]
+    count=0
+    population.sort(key=lambda x:x.fitness)
+    sum_fitness=sum([solution.fitness for solution in population])
+    while(count<2):
+        for solution in population:
+            random_number=random.random()
+            if random_number<=solution.fitness/sum_fitness:
+                selection_population.append(solution)
+                count+=1
+                break
+    return selection_population[0],selection_population[1]
+def geneticAlgorithm(problem):
+    populationsize=Pop_size
+    best_solution=None
+    sol_1,sol_2=firstGeneration(problem)
+    population=[sol_1,sol_2]
+    for i in range(iteration):
+        parent1,parent2=selection(population)
+        child1=Crossover_Prime(parent1,parent2)
+        child2=Crossover_Prime(parent2,parent1)
+        if random.random()<mutation_rate:
+            child1=mutation(child1)
+        if random.random()<mutation_rate:
+            child2=mutation(child2)
+        population.append(child1)
+        population.append(child2)
+        if len(population)>populationsize:
+            population.sort(key=lambda x:x.number_knapsack,reverse=True)
+            population=population[:populationsize]
+    population.sort(key=lambda x:x.fitness)
+    best_solution=population[0]
+    return best_solution
 #-----------------------------------------------------------------------------------------------------------------------
 # PSO
 class Particle:
@@ -142,14 +227,6 @@ def Clear_null_knapsack(solution):
     for knapsack in solution.knapsacks:
         if len(knapsack.getItems())==0:
             solution.knapsacks.remove(knapsack)
-def split(solution):
-    kn_chosen=random.choice(solution.knapsacks)
-    new_knapsack=Knapsack(solution.problem.knapsack_list[0].capacity)
-    for i in range(0,math.floor(len(kn_chosen.getItems())/2)):
-        item=random.choice(kn_chosen.getItems())
-        kn_chosen.remove(item)
-        new_knapsack.add(item)
-        solution.knapsacks.append(new_knapsack)
 def swap_items_solution(solution):
     kn_not_full=[kn for kn in solution.knapsacks if kn.getWeight()<kn.capacity]
     if len(kn_not_full)<2:
@@ -403,14 +480,14 @@ def main():
     timeStart = time.time()
     for problem in Problems:
         Pro_start=time.time()
-        best_solution=PSO(problem,PSO_population_size,PSO_w,PSO_c1,PSO_c2)
+        #best_solution=PSO(problem,PSO_population_size,PSO_w,PSO_c1,PSO_c2)
+        best_solution=geneticAlgorithm(problem)
         problem.my_solution=best_solution
         Pro_end=time.time()
         print(Pro_end-Pro_start)
     PrintToFile(sys.argv[4])
     timeEnd = time.time()
     print('Time:',timeEnd-timeStart)
-
 
 if __name__ == '__main__':
     main()
